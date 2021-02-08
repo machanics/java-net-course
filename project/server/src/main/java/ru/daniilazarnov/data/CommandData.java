@@ -1,13 +1,14 @@
 package ru.daniilazarnov.data;
 
-import ru.daniilazarnov.StorageServerHandler;
-
-import java.io.Serializable;
-import java.nio.channels.SocketChannel;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 public class CommandData extends CommonData implements iData {
     private ArrayList<String> echo = new ArrayList<String>();
+    private ArrayList<String> param = new ArrayList<String>();
     private int command = 0;
     private int completed = 0;
 
@@ -19,31 +20,49 @@ public class CommandData extends CommonData implements iData {
         this.echo.add(text);
     }
 
-    public void run (StorageServerHandler storageSH, SocketChannel ch) {
-        if (this.completed == 1) return;
-        CommandData cD = new CommandData();
+    public CommandData setCommand(int i){
+        this.command = i;
+        return this;
+    }
 
-        if (this.command == 1) {
-            cD.writeInHelp();
+
+    public CommandData ls (Path path){
+        File currentDir = new File(path.toString());
+
+        for (File file : currentDir.listFiles()) {
+            if (file.isDirectory()) {
+                this.addEcho("Directory: " + file.getName());
+            } else {
+                this.addEcho("file: " + file.getName());
+            }
         }
 
-        storageSH.handleWrite(cD,ch);
-        this.completed = 1;
+        return this;
     }
 
-    public void notAuthorized(StorageServerHandler storageSH, SocketChannel ch) {
-        if (this.completed == 1) return;
-        CommandData cD = new CommandData();
-        cD.addEcho("Please log in, otherwise session kill 120 sec.");
-        storageSH.handleWrite(cD,ch);
-        this.completed = 1;
+    public CommandData mkdir (Path path, ArrayList<String> param) {
+        String dirPath = path.toString() + "" +File.separator+ "" + param.get(0);
+
+        if (!Files.isDirectory(Path.of(dirPath))) {
+            try {
+                Files.createDirectories(Path.of(dirPath));
+                this.addEcho("Success mkdir : "+ param.get(0));
+            } catch (IOException e) {
+                this.addEcho("failed mkdir : "+ param.get(0));
+            }
+        }
+
+        return this;
     }
 
+    public ArrayList<String> getParam() {
+        return this.param;
+    }
     public int getCommand() {
         return this.command;
     }
 
-    private void writeInHelp () {
+    public CommandData writeInHelp () {
         this.echo.add("[-h]: Show help list");
         this.echo.add("[reg -lLogin -pPaswoord]: User registration");
         this.echo.add("[login -lLogin -pPaswoord]: User authorization");
@@ -52,13 +71,34 @@ public class CommandData extends CommonData implements iData {
         this.echo.add("[cd -p URL]: transition to url");
         this.echo.add("[upload -p from -p to]: upload file to Storage Server, (*from): absolute path. (upload /Users/r.shafikov/Downloads/bmw_x3m_2021.jpeg /photo/x3m1.jpg)");
         this.echo.add("[download -p From -p To]: download file to Storage Server (*to): absolute path.");
+
+        return this;
     }
 
+    public CommandData notAuthorized() {
+        this.completed = 0;
+        this.addEcho("Please log in, otherwise session kill 120 sec.");
 
+        return this;
+    }
 
+    public CommandData authFailed() {
+        this.completed = 0;
+        this.addEcho("Authorized failed, please try again!");
+        return this;
+    }
 
+    public CommandData authSuccess() {
+        this.completed = 0;
+        this.addEcho("Authorized Success!");
+        return this;
+    }
 
-
+    public CommandData uploadSuccess() {
+        this.completed = 0;
+        this.addEcho("Upload Success!");
+        return this;
+    }
 
 
 

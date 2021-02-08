@@ -2,7 +2,10 @@ package ru.daniilazarnov;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -303,5 +306,14 @@ class MainTest {
         aa.stream()
                 .flatMap(list -> list.stream())
                 .forEach(s -> System.out.println(s));
+    }
+
+
+    @Test
+    void testWalk() throws IOException {
+        Files.walk(Path.of("../lesson-1/dir"))
+                .map(Path::toString)
+                .map()
+                .forEach(System.out::println);
     }
 }

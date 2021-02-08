@@ -1,18 +1,23 @@
 package ru.daniilazarnov;
 
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
+import ru.daniilazarnov.handlers.CommandHandler;
+import ru.daniilazarnov.handlers.TempDataHandler;
+import ru.daniilazarnov.handlers.WriteDataHandler;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.FileHandler;
@@ -22,15 +27,16 @@ import java.util.logging.Logger;
 
 public class StorageServer {
     private static final Logger logger = Logger.getLogger(StorageServer.class.getName());
-
-    private ServerSocketChannel serverSocketChannel;
     private ExecutorService executorService;
-    private Selector selector;
+
+
+    private static final HashMap<String, ChannelHandlerContext> execConsMap = new HashMap<>();
 
 
     public static final String LOCATION_FILES = "files" + File.separator;
     public static final String LOCATION_TEMP_FILES = LOCATION_FILES + File.separator + "temp" + File.separator;
 
+    public static final int SIZE_META = 10;
     public static final int PORT = 8894;
 
     public StorageServer () {
@@ -38,32 +44,45 @@ public class StorageServer {
         this.loggerSettings();
         this.executorService = Executors.newCachedThreadPool();
 
+        EventLoopGroup bossGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
+
         try {
+            DataBase.connected();
+            ServerBootstrap b = new ServerBootstrap();
+            b.group(bossGroup, workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        public void initChannel(SocketChannel ch) {
+                            ch.pipeline().addLast(new WriteDataHandler());
+                            ch.pipeline().addLast(new TempDataHandler());
+                        }
+                    });
 
-            this.serverSocketChannel = ServerSocketChannel.open();
-            this.serverSocketChannel.socket().bind(new InetSocketAddress(PORT));
-            this.serverSocketChannel.configureBlocking(false);
-            this.selector = Selector.open();
-            this.serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-            this.executorService.execute(new StorageServerHandler(this));
+            ChannelFuture f = b.bind(PORT).sync();
+            f.addListener(new ChannelFutureListener() {
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (future.isSuccess()) {
+                        logger.log(Level.INFO, future.channel().localAddress()+" started!");
+                    }
+                }
+            });
 
-            this.logger.log(Level.INFO, "StorageServer started!");
+
+            f.channel().closeFuture().sync();
+
         } catch (Exception e) {
-            this.logger.log(Level.WARNING, "StorageServer started IOException");
+            e.printStackTrace();
+        } finally {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
         }
 
     }
 
     public ExecutorService getExecutorService () {
         return this.executorService;
-    }
-
-    public Selector getSelector () {
-        return this.selector;
-    }
-
-    public ServerSocketChannel getServerSocketChannel () {
-        return this.serverSocketChannel;
     }
 
     public static void loggerSettings () {
@@ -83,5 +102,21 @@ public class StorageServer {
         }
 
     }
+
+    public static void setExecConsMap (String socketid, ChannelHandlerContext ctx) {
+        StorageServer.execConsMap.put(socketid, ctx);
+    }
+
+    public static ChannelHandlerContext getExecConsMap (String socketid) {
+        return StorageServer.execConsMap.get(socketid);
+    }
+
+    public static void removeExecConsMap (String socketid) {
+        StorageServer.execConsMap.remove(socketid);
+    }
+
+
+
+
 
 }

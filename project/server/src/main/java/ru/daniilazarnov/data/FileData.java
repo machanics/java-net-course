@@ -22,8 +22,8 @@ public class FileData extends CommonData implements iData {
     private String fromPath;
     private long lengthByte;
 
-    public FileData(TypeMessages type) {
-        super(type);
+    public FileData() {
+        super(TypeMessages.FILE);
     }
 
     public void setCalalog(String calalog){

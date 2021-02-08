@@ -7,9 +7,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 public class StorageUtil {
+
+
+
+    public static Path getUserPath (int userid) {
+        Path path = Paths.get(StorageServer.LOCATION_FILES + "" +userid+ "" +File.separator+ "");
+
+        if (!Files.isDirectory(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return path;
+    }
+
+
 
     public static String pathFileStorage (FileData f, String id) {
         Path path = Paths.get(StorageServer.LOCATION_FILES + "" +id+ "" +File.separator+ "" + f.getToCatalog());
@@ -38,6 +57,19 @@ public class StorageUtil {
         return path.toString();
     }
 
+
+    public static String createTempFile () {
+        Path path = Paths.get(StorageServer.LOCATION_TEMP_FILES + UUID.randomUUID().toString());
+        File pathFile = new File(path.toString());
+
+        try {
+            pathFile.createNewFile();
+        } catch (IOException e) {
+            return createTempFile();
+        }
+
+        return pathFile.toString();
+    }
 
 
 

@@ -27,8 +27,8 @@ public class Client {
 
     private SocketChannel socketChannel;
     public static final int PORT = 8894;
+    public static final int SIZE_META = 10;
     private static final ByteBuffer buffer = ByteBuffer.allocate(48);
-
 
     public Client () {
         this.connect();
@@ -73,48 +73,49 @@ public class Client {
         ByteBuffer buf = ByteBuffer.allocateDirect(buffer.limit());
         int nRead = 0;
         try {
+            buf.clear();
 
+            String tempFile = cHandler.createTempFile();
             while ((nRead = socketChannel.read(buf)) > 0) {
-                int sizeMetaBuffer = cHandler.metaData.toString().getBytes().length;
-                byte[] bytes = new byte[buf.limit()];
 
+                cHandler.readsSize = cHandler.readsSize + nRead;
+                byte[] bytes = new byte[nRead];
                 buf.flip();
                 buf.get(bytes);
 
-                if (cHandler.sizeMetaData == -1) {
-                    cHandler.sizeMetaData = Integer.parseInt(new String(Arrays.copyOf(bytes, 10)));
-                    if (cHandler.sizeMetaData < bytes.length) {
-                        cHandler.metaData.append(new String(bytes).substring(10, cHandler.sizeMetaData + 10));
-                        bytes = Arrays.copyOfRange(bytes, cHandler.sizeMetaData + 10, bytes.length);
-                    } else {
-                        cHandler.metaData.append(new String(bytes).substring(10, bytes.length));
-                    }
-                } else if (sizeMetaBuffer < cHandler.sizeMetaData) {
-                    int сheckSize = sizeMetaBuffer + bytes.length;
-                    if (сheckSize > cHandler.sizeMetaData) {
-                        int difference = сheckSize - cHandler.sizeMetaData;
-                        cHandler.metaData.append(new String(Arrays.copyOf(bytes, bytes.length - difference)));
-                        bytes = Arrays.copyOfRange(bytes, bytes.length - difference, bytes.length);
-                    } else {
-                        cHandler.metaData.append(new String(bytes));
+                try (FileOutputStream fos = new FileOutputStream(tempFile, true)) {
+                    fos.write(bytes);
+                }
+
+                if (cHandler.size == 0 && cHandler.readsSize >= 10) {
+                    FileInputStream fRead = new FileInputStream(tempFile);
+                    try {
+                        byte[] sizeByte = new byte[SIZE_META];
+                        fRead.read(sizeByte, 0, SIZE_META);
+                        cHandler.size = Integer.parseInt(new String(sizeByte));
+                    } finally {
+                        fRead.close();
                     }
                 }
 
-                if (cHandler.metaData.toString().getBytes().length == cHandler.sizeMetaData) {
-                    JsonObject jsonObject = JsonParser.parseString(cHandler.metaData.toString()).getAsJsonObject();
-                    cHandler.addCommand(jsonObject);
+                if (cHandler.metaData.length() == 0 && (cHandler.size+SIZE_META) <= cHandler.readsSize) {
+                    FileInputStream fRead = new FileInputStream(tempFile);
+                    try {
+                        fRead.skip((long) SIZE_META);
+                        byte[] sizeMetaByte = new byte[cHandler.size];
+                        fRead.read(sizeMetaByte, 0, cHandler.size);
+                        cHandler.metaData = new String(sizeMetaByte);
+                    } finally {
+                        fRead.close();
+                    }
                 }
 
-                CommonData command = cHandler.getCommand();
-                if (command != null && command.getType() == TypeMessages.COMMAND) {
-                    ((CommandData) command).run();
+                if (cHandler.metaData.length() > 0 && !cHandler.getIsAccepted()) {
+                    cHandler.addCommand();
                 }
-
 
                 buf.clear();
             }
-
-
 
             if (nRead < 0) {
                 socketChannel.close();

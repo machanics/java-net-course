@@ -23,11 +23,24 @@ public class FileData extends CommonData implements iData, Serializable {
     private long lengthByte;
 
     public FileData(TypeMessages type) {
-        super(type);
+        super(TypeMessages.FILE);
+    }
+
+    public FileData(String from, String to) {
+        super(TypeMessages.FILE);
+        this.addFile(Paths.get(from));
+        this.setCalalog(to);
     }
 
     public void setCalalog(String calalog){
         this.calalog = calalog;
+    }
+    public String getToCatalog(){
+        return this.calalog;
+    }
+
+    public long getLengthByte () {
+        return this.lengthByte;
     }
 
     public String getFromPath(){
