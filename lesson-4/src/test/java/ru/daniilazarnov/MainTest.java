@@ -309,11 +309,5 @@ class MainTest {
     }
 
 
-    @Test
-    void testWalk() throws IOException {
-        Files.walk(Path.of("../lesson-1/dir"))
-                .map(Path::toString)
-                .map()
-                .forEach(System.out::println);
-    }
+
 }

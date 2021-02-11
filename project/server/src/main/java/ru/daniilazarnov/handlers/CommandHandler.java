@@ -42,23 +42,21 @@ public class CommandHandler {
     public void addCommand () {
         String stringJson = tempDataHandler.getMeta();
         JsonObject jsonObject = JsonParser.parseString(stringJson).getAsJsonObject();
-        String type = jsonObject.get("type").getAsString();
+        TypeMessages type = TypeMessages.valueOf(jsonObject.get("type").getAsString());
         tempDataHandler.setIsAccepted(true);
 
-        if (type.equals(TypeMessages.FILE.toString())) {
+        if (type == TypeMessages.FILE) {
             FileData fileData = (FileData) gson.fromJson(stringJson, FileData.class);
             long monitor = fileData.getLengthByte() + StorageServer.SIZE_META + stringJson.length();
             this.accepted.add(fileData);
             new Thread(new ReadsSizeHandler(tempDataHandler,this, monitor)).start();
-        } else if (type.equals(TypeMessages.COMMAND.toString())) {
+        } else if (type == TypeMessages.COMMAND) {
             this.accepted.add((CommandData) gson.fromJson(stringJson, CommandData.class));
-        } else if (type.equals(TypeMessages.AUTH.toString())) {
+        } else if (type == TypeMessages.AUTH) {
             this.accepted.add((AuthData) gson.fromJson(stringJson, AuthData.class));
         }
 
-        if (!type.equals(TypeMessages.FILE.toString())) {
-            this.run();
-        }
+        if (type != TypeMessages.FILE) this.run();
     }
 
     public void run () {
@@ -98,11 +96,18 @@ public class CommandHandler {
             }
         }
 
+
         if (this.isAuthorized && common.getType() == TypeMessages.COMMAND) {
             CommandData commandIn = (CommandData) common;
             CommandData commandOut = new CommandData();
-            ChannelHandlerContext ctx = StorageServer.getExecConsMap(this.socketId);
 
+            // ** Замена switch пока что еще не дописал ** //
+
+//            iCommand command = Command.getCommand(commandIn.getCommand());
+//            ArrayList response = command.execute(this.currentUserPath(), commandIn.getParam());
+//            commandOut.setResponse(response);
+
+            ChannelHandlerContext ctx = StorageServer.getExecConsMap(this.socketId);
             switch (commandIn.getCommand()) {
                 case 1 : ctx.write(commandOut.writeInHelp()); break;
                 case 2 : ctx.write(commandOut.ls(this.currentUserPath())); break;

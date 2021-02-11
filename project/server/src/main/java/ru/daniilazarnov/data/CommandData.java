@@ -20,6 +20,10 @@ public class CommandData extends CommonData implements iData {
         this.echo.add(text);
     }
 
+    public void setResponse (ArrayList list) {
+        list.forEach((n) -> echo.add((String) n));
+    }
+
     public CommandData setCommand(int i){
         this.command = i;
         return this;
